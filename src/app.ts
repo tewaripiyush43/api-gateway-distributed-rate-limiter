@@ -1,9 +1,13 @@
 import proxyHandler from "#gateway/proxyHandler.js";
+import apiKeyMiddleware from "#middlewares/apiKeyMiddleware.js";
+import planSelectorMiddleware from "#middlewares/planSelectorMiddleware.js";
 import rateLimitMiddleware from "#middlewares/rateLimitMiddleware.js";
 import express from "express";
 
 const app = express();
 app.use(express.json());
+
+app.use(apiKeyMiddleware);
 
 app.use(
   rateLimitMiddleware({
@@ -13,6 +17,11 @@ app.use(
     identifier: () => "GLOBAL"
   })
 );
+
+app.use(planSelectorMiddleware({
+  strategy: "sliding",
+  identifier: (req) => req.client?.key ?? req.ip ?? "UNKNOWN"
+}))
 
 app.use("/proxy", proxyHandler);
 
