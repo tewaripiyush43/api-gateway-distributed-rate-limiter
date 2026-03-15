@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { API_KEYS } from "#config/apiKeys.js";
+import { API_KEYS } from "../config/apiKeys.js";
 
 export default function apiKeyMiddleware(req: Request, res: Response, next: NextFunction) {
     const apiKey = req.headers['x-api-key'];

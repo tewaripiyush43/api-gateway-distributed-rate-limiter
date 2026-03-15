@@ -1,4 +1,4 @@
-import client from "#config/redis.js";
+import client from "../../config/redis.js";
 import RateLimitStrategy from "./rateLimitStrategy.js";
 import crypto from "crypto";
 
@@ -12,20 +12,21 @@ export default class SlidingWindow implements RateLimitStrategy {
         const key = `sw:${identifier}`;
 
         try {
-            await client.zRemRangeByScore(
-                key,
-                0,
-                nowInSeconds - windowInSeconds
-            );
+            const replies = await client.multi()
+                .zRemRangeByScore(
+                    key,
+                    0,
+                    nowInSeconds - windowInSeconds
+                )
+                .zAdd(key, {
+                    score: nowInSeconds,
+                    value: crypto.randomUUID()
+                })
+                .expire(key, windowInSeconds)
+                .zCard(key)
+                .exec();
 
-            await client.zAdd(key, {
-                score: nowInSeconds,
-                value: crypto.randomUUID()
-            });
-
-            await client.expire(key, windowInSeconds);
-
-            const count = await client.zCard(key);
+            const count = replies[3] as unknown as number;
             return count <= limit;
         } catch (err) {
             // fail-open

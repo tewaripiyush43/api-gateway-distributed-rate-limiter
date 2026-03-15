@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  gateway:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      - redis
+    environment:
+      PORT: 3000
+      REDIS_URL: redis://redis:6379
+      DOWNSTREAM_BASE_URL: http://host.docker.internal:5000

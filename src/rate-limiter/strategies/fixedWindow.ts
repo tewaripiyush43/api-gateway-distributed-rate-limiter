@@ -1,4 +1,4 @@
-import client from "#config/redis.js";
+import client from "../../config/redis.js";
 import RateLimitStrategy from "./rateLimitStrategy.js";
 
 export default class FixedWindow implements RateLimitStrategy {
@@ -14,11 +14,12 @@ export default class FixedWindow implements RateLimitStrategy {
         const key = `fw:${identifier}:${windowStart}`;
 
         try {
-            const count = await client.incr(key);
+            const replies = await client.multi()
+                .incr(key)
+                .expire(key, windowInSeconds, 'NX')
+                .exec();
 
-            if (count === 1) {
-                await client.expire(key, windowInSeconds);
-            }
+            const count = replies[0] as unknown as number;
 
             if (count > limit) {
                 return false;

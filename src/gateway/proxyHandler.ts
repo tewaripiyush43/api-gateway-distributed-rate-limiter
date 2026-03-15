@@ -1,6 +1,7 @@
-import { Request, Response } from "express";
+import { ENV } from "../config/env.js";
+import { NextFunction, Request, Response } from "express";
 
-export default async function proxyHandler(req: Request, res: Response) {
+export default async function proxyHandler(req: Request, res: Response, next: NextFunction) {
     const abortController = new AbortController();
 
     const timeoutId = setTimeout(() => {
@@ -11,7 +12,7 @@ export default async function proxyHandler(req: Request, res: Response) {
 
         const incoming = req.originalUrl;
         const forwardPath = incoming.split("/proxy")[1] || "";
-        const targetUrl = `${process.env.DOWNSTREAM_BASE_URL}${forwardPath}`
+        const targetUrl = `${ENV.DOWNSTREAM_BASE_URL}${forwardPath}`
         // console.log(req.headers);
 
         const forbiddenHeaders: Set<string> = new Set([
@@ -55,7 +56,7 @@ export default async function proxyHandler(req: Request, res: Response) {
                 error: "GATEWAY_TIMEOUT"
             })
         } else {
-            throw err;
+            next(err);
         }
     } finally {
         clearTimeout(timeoutId);

@@ -1,6 +1,6 @@
-import { selectRateLimitStrategy } from "#rate-limiter/index.js";
+import { selectRateLimitStrategy } from "../rate-limiter/index.js";
 import { Request, Response, NextFunction } from "express";
-import { RateLimiterOptions } from "#types/RateLimiterOptions.js";
+import { RateLimiterOptions } from "../types/RateLimiterOptions.js";
 
 export default function rateLimitMiddleware(
     options: RateLimiterOptions
