@@ -1,5 +1,5 @@
 {
-  "name": "rate-limiter",
+  "name": "api-gateway-distributed-rate-limiter",
   "version": "1.0.0",
   "description": "",
   "main": "app.js",
