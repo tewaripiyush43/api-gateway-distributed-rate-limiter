@@ -28,8 +28,6 @@ app.get("/metrics", (req, res) => {
   res.status(200).json({ metrics: metrics.getMetrics() })
 })
 
-app.use(apiKeyMiddleware);
-
 app.use(
   rateLimitMiddleware({
     limit: 500,
@@ -38,6 +36,8 @@ app.use(
     identifier: () => "GLOBAL"
   })
 );
+
+app.use(apiKeyMiddleware);
 
 app.use(planSelectorMiddleware({
   strategy: "sliding",

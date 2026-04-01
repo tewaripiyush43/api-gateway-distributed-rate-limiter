@@ -1,16 +1,26 @@
 import { Request, Response, NextFunction } from "express";
-import { API_KEYS } from "../config/apiKeys.js";
+import { config, TenantConfig } from "../config/tenantConfig.js";
+
+class InvalidApiKeyError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "InvalidApiKeyError";
+
+        Object.setPrototypeOf(this, InvalidApiKeyError);
+    }
+
+}
 
 export default function apiKeyMiddleware(req: Request, res: Response, next: NextFunction) {
     const apiKey = req.headers['x-api-key'];
 
 
-    if (typeof apiKey !== 'string' || !API_KEYS[apiKey]) {
-        return next()
+    if (typeof apiKey !== 'string' || !config[apiKey]) {
+        throw new InvalidApiKeyError("Invalid Api Key")
     }
-    req.client = {
-        key: apiKey,
-        plan: API_KEYS[apiKey].plan
-    }
+
+    const tenatnConfig: TenantConfig = config[apiKey];
+
+    req.client = tenatnConfig;
     next()
 }

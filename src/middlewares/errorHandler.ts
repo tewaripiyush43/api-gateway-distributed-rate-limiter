@@ -11,8 +11,10 @@ export default function errorHandler(
         return
     }
 
+
+
     res.status(500).json({
-        error: "INTERNAL_SERVER_ERROR",
-        message: "Something went wrong"
+        error: err.name ? err.name : "INTERNAL_SERVER_ERROR",
+        message: err.message ? err.message : "Something went wrong"
     })
 }

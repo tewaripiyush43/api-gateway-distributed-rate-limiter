@@ -1,5 +1,6 @@
 import { ENV } from "../config/env.js";
 import { NextFunction, Request, Response } from "express";
+import { getDownstreamUrl, ServiceNotFoundError } from "./downstreamUrlResolver.js";
 
 export default async function proxyHandler(req: Request, res: Response, next: NextFunction) {
     const abortController = new AbortController();
@@ -9,12 +10,7 @@ export default async function proxyHandler(req: Request, res: Response, next: Ne
     }, 10000); // 10 seconds
 
     try {
-
-        const incoming = req.originalUrl;
-        const forwardPath = incoming.split("/proxy")[1] || "";
-        const targetUrl = `${ENV.DOWNSTREAM_BASE_URL}${forwardPath}`
-        // console.log(req.headers);
-
+        const targetUrl = getDownstreamUrl(req.originalUrl, req.client);
         const forbiddenHeaders: Set<string> = new Set([
             "connection",
             "host",
@@ -54,6 +50,11 @@ export default async function proxyHandler(req: Request, res: Response, next: Ne
             console.log("Fetch aborted due to timeout");
             res.status(504).json({
                 error: "GATEWAY_TIMEOUT"
+            })
+        }
+        else if (err instanceof ServiceNotFoundError) {
+            res.status(404).json({
+                error: err.message
             })
         } else {
             next(err);

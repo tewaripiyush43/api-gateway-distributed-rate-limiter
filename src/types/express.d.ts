@@ -1,8 +1,6 @@
 declare namespace Express {
+    import { TenantConfig } from "../config/tenantConfig.ts";
     export interface Request {
-        client?: {
-            key: string
-            plan: string
-        };
+        client?: TenantConfig
     }
 }
