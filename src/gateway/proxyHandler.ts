@@ -1,6 +1,7 @@
 import { ENV } from "../config/env.js";
 import { NextFunction, Request, Response } from "express";
-import { getDownstreamUrl, ServiceNotFoundError } from "./downstreamUrlResolver.js";
+import { getDownstreamUrl } from "./downstreamUrlResolver.js";
+import { GatewayTimeoutError } from "../errors/GatewayTimeoutError.js";
 
 export default async function proxyHandler(req: Request, res: Response, next: NextFunction) {
     const abortController = new AbortController();
@@ -10,7 +11,7 @@ export default async function proxyHandler(req: Request, res: Response, next: Ne
     }, 10000); // 10 seconds
 
     try {
-        const targetUrl = getDownstreamUrl(req.originalUrl, req.client);
+        const targetUrl = getDownstreamUrl(req.originalUrl, req.client!);
         const forbiddenHeaders: Set<string> = new Set([
             "connection",
             "host",
@@ -24,38 +25,39 @@ export default async function proxyHandler(req: Request, res: Response, next: Ne
                 headers[key] = Array.isArray(value) ? value.join(", ") : value;
             }
         })
-        // console.log(headers);
-        const options = {
+
+        // Stream raw body through to target natively
+        const options: RequestInit = {
             method: req.method,
             headers,
-            body: req.method === 'GET' || req.method === "HEAD" ? undefined : JSON.stringify(req.body),
-            signal: abortController.signal
+            body: req.method === 'GET' || req.method === "HEAD" ? undefined : (req as any).readable ? req : undefined,
+            signal: abortController.signal,
+            // @ts-ignore Node 18+ allows duplex streams
+            duplex: "half"
         }
 
         const response = await fetch(targetUrl, options);
 
-        const contentType = response.headers.get("content-type") || "";
+        // Pipe downstream response to client
+        res.status(response.status);
+        response.headers.forEach((value, key) => {
+            res.setHeader(key, value);
+        });
 
-        if (contentType.includes("application/json")) {
-            const data = await response.json();
-            res.status(response.status).json(data);
+        if (response.body) {
+            // Wait for stream to finish piping
+            for await (const chunk of response.body as any) {
+                res.write(chunk);
+            }
+            res.end();
         } else {
-            const data = await response.text();
-            res.status(response.status).send(data);
+            res.end();
         }
 
     }
     catch (err: any) {
         if (err.name === "AbortError") {
-            console.log("Fetch aborted due to timeout");
-            res.status(504).json({
-                error: "GATEWAY_TIMEOUT"
-            })
-        }
-        else if (err instanceof ServiceNotFoundError) {
-            res.status(404).json({
-                error: err.message
-            })
+            next(new GatewayTimeoutError("Downstream service timed out."));
         } else {
             next(err);
         }

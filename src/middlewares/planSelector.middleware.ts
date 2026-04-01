@@ -1,6 +1,6 @@
 import { planSelectorOptions } from "#types/PlanSelectorOptions.js";
 import { Request, Response, NextFunction } from "express";
-import rateLimitMiddleware from "./rateLimitMiddleware.js";
+import rateLimitMiddleware from "./rateLimiter.middleware.js";
 import { PLAN_LIMITS } from "../config/plans.js";
 
 export default function planSelectorMiddleware(

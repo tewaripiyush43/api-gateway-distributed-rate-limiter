@@ -1,13 +1,5 @@
 import { TenantConfig } from "../config/tenantConfig.js";
-
-export class ServiceNotFoundError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = "ServiceNotFoundError";
-
-        Object.setPrototypeOf(this, ServiceNotFoundError.prototype);
-    }
-}
+import { ServiceNotFoundError } from "../errors/ServiceNotFoundError.js";
 
 export function getDownstreamUrl(incomingUrl: string, tenantConfig: TenantConfig): string {
     const proxyIndex = incomingUrl.indexOf("/proxy");
