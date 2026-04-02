@@ -10,8 +10,8 @@ export default function apiKeyMiddleware(req: Request, res: Response, next: Next
         throw new InvalidApiKeyError("Invalid Api Key")
     }
 
-    const tenatnConfig: TenantConfig = config[apiKey];
+    const tenantConfig: TenantConfig = config[apiKey];
 
-    req.client = tenatnConfig;
+    req.client = tenantConfig;
     next()
 }
