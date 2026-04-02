@@ -24,7 +24,10 @@ export async function getSystemHealth(): Promise<healthResponse> {
   };
 
   try {
-    const pingResult = await redisClient.ping();
+    const pingResult = await Promise.race([
+        redisClient.ping(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Redis timeout')), 1000))
+    ]);
     if (pingResult !== "PONG") {
       response.redis.status = healthStatus.DOWN;
       response.redis.statusCode = 503;

@@ -6,8 +6,13 @@ import { ENV } from "./config/env.js";
 const PORT = ENV.PORT || 9001;
 let shuttingDown = false;
 
-await client.connect()
-console.log("Redis server is connected")
+client.connect().catch((err: any) => {
+    console.error("Redis connection error during startup:", err?.message || err);
+});
+
+client.on("ready", () => {
+    console.log("Redis server is connected and ready");
+});
 
 const server = app.listen(PORT, () => {
     console.log(`Server is running on ${PORT}`)
@@ -22,18 +27,26 @@ function shutdownHandler() {
 
     console.log("SIGTERM received, shutting down gracefully...");
 
+    setTimeout(() => {
+        console.error("Forcefully shutting down");
+        process.exit(1);
+    }, 10000);
+
     server.close(async () => {
         console.log("HTTP server is closed")
 
         try {
-            await client.quit();
+            await Promise.race([
+                client.quit(),
+                new Promise((_, resolve) => setTimeout(() => {
+                    client.destroy();
+                    resolve(null);
+                }, 500))
+            ]);
             console.log("Redis connection closed");
         } catch (err) {
             console.error(err);
         }
-        setTimeout(() => {
-            console.error("Forcefully shutting down");
-            process.exit(1);
-        }, 10000);
+        process.exit(0);
     })
 }

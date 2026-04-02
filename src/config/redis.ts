@@ -1,9 +1,10 @@
 import { createClient } from "redis";
 import { ENV } from "./env.js";
 
-const client = await createClient({
-    url: ENV.REDIS_URL
+const client = createClient({
+    url: ENV.REDIS_URL,
+    disableOfflineQueue: true
 });
-client.on("error", () => { console.log("Error while connecting to redis"); process.exit(1) });
+client.on("error", (err) => { console.log("Redis connection error:", err.message); });
 
 export default client;

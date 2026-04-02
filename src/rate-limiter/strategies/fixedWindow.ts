@@ -14,10 +14,13 @@ export default class FixedWindow implements RateLimitStrategy {
         const key = `fw:${identifier}:${windowStart}`;
 
         try {
-            const replies = await client.multi()
-                .incr(key)
-                .expire(key, windowInSeconds, 'NX')
-                .exec();
+            const replies = await Promise.race([
+                client.multi()
+                    .incr(key)
+                    .expire(key, windowInSeconds, 'NX')
+                    .exec(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Redis timeout')), 500))
+            ]) as unknown as any[];
 
             const count = replies[0] as unknown as number;
 
