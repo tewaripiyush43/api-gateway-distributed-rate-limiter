@@ -13,8 +13,8 @@ const server = app.listen(PORT, () => {
     console.log(`Server is running on ${PORT}`)
 })
 
-// process.on("SIGTERM", shutdownHandler);
-// process.on("SIGINT", shutdownHandler);
+process.on("SIGTERM", shutdownHandler);
+process.on("SIGINT", shutdownHandler);
 
 function shutdownHandler() {
     if (shuttingDown) return;
