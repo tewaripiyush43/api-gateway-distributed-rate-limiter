@@ -14,19 +14,25 @@ This gateway sits in front of downstream services and centralizes:
 - API key authentication
 - Free / Pro plan enforcement
 - distributed rate limiting
+- multi-tenant downstream resolution
+- service-level path routing
 - latency and traffic metrics
-- timeout protection
+- request tracing via `x-request-id`
+- Redis-aware health checks
 - graceful shutdown
 
-The rate limiting state is stored in Redis so limits remain globally consistent across multiple gateway instances.
+The rate limiting state is stored in Redis so limits remain globally consistent across multiple gateway instances, while tenant configuration drives dynamic downstream routing.
+
+The proxy layer forwards requests as streams, allowing the gateway to stay payload-agnostic and handle large files or mixed content types without buffering.
 
 ---
 
 ## Core Features
 
 - Express + TypeScript gateway setup
-- downstream proxy forwarding
-- path normalization
+- stream-based downstream proxy forwarding
+- content-type agnostic request passthrough
+- path normalization and tenant-aware service routing
 - request body and header forwarding
 - upstream timeout handling with `AbortController`
 - safe `504 Gateway Timeout` responses
@@ -35,7 +41,9 @@ The rate limiting state is stored in Redis so limits remain globally consistent 
 - Strategy Pattern based limiter selection
 - API-key and plan-based rate limiting
 - Redis `MULTI` transactions for atomic updates
-- fail-open behavior on Redis failure
+- timeout-safe fail-open behavior on Redis outages and hangs
+- request tracing via `x-request-id`
+- Redis-aware `/health`
 - request metrics via `/metrics`
 - graceful shutdown on `SIGTERM` / `SIGINT`
 - Docker and Docker Compose local setup
@@ -52,39 +60,41 @@ Client Request ─▶│      API Gateway     │
                             │
                             ▼
                 ┌──────────────────────────┐
-                │ Middleware Pipeline       │
-                │ - Metrics                 │
-                │ - API Key Auth            │
-                │ - Plan Resolution         │
-                │ - Rate Limiter            │
-                │ - Proxy Forwarding        │
+                │ Middleware Pipeline      │
+                │ - Request ID             │
+                │ - Metrics                │
+                │ - Global Limiter         │
+                │ - Tenant Resolution      │
+                │ - Plan Limiter           │
+                │ - URL Resolver           │
+                │ - Stream Proxy           │
                 └──────────┬───────────────┘
                            │
               ┌────────────┴────────────┐
               ▼                         ▼
     ┌──────────────────┐      ┌────────────────────┐
-    │ Redis Shared     │      │ Downstream Service │
-    │ Rate Limit State │      │ / APIs             │
+    │ Redis Shared     │      │ Tenant Downstream  │
+    │ Rate Limit State │      │ Services / APIs    │
     └──────────────────┘      └────────────────────┘
 ```
 
 ---
-
 ## Request Lifecycle
 
 ```text
 Client
+  → Request ID assigned or reused
   → Metrics middleware starts timer
-  → API key validation
-  → Plan selection (Free / Pro)
-  → Distributed Redis rate limit validation
-  → Proxy request to downstream
+  → Global distributed rate limit validation
+  → API key tenant resolution
+  → Plan-based rate limiting
+  → Downstream URL resolution
+  → Stream-based transparent proxy to downstream service
   → Upstream response passthrough
   → Metrics updated
-  → Response returned
+  → Response returned with x-request-id
 ```
-
-Rate limits and authentication checks are enforced before proxy forwarding.
+The gateway resolves tenant and service routing before proxying while staying transparent to payload type.
 
 ---
 
@@ -148,16 +158,43 @@ This keeps the design:
 
 ```text
 request
+  → requestIdMiddleware
   → metrics
+  → globalRateLimiter
   → apiKeyMiddleware
   → planSelector
-  → distributedRateLimiter
+  → downstreamUrlResolver
   → proxyHandler
   → 404 middleware
   → globalErrorHandler
 ```
 
 Each middleware handles a single responsibility, keeping the request pipeline easy to extend and reason about.
+
+---
+
+## Multi-Tenant Service Routing
+
+The gateway supports tenant-aware downstream routing using API-key based configuration.
+
+Each API key resolves:
+
+- tenant plan
+- tenant base URL
+- service path mappings
+
+A request like:
+
+```text
+/proxy/user/profile
+```
+
+is resolved as:
+```text
+{tenantBaseUrl} + /user-service + /profile
+```
+
+This enables the same gateway instance to serve multiple tenants while routing requests to tenant-specific downstream systems.
 
 ---
 
@@ -168,11 +205,12 @@ The gateway includes:
 - upstream timeout protection using `AbortController`
 - safe `504` response mapping
 - centralized error middleware
-- fail-open strategy if Redis is unavailable
-- graceful shutdown with Redis connection cleanup
+- timeout-safe fail-open behavior for Redis dependency hangs
+- Redis-aware `/health` with bounded live ping checks
+- graceful shutdown with bounded Redis cleanup timeout
 - forced shutdown timeout fallback
 
-Fail-open behavior prioritizes gateway availability during Redis outages.
+Fail-open behavior is preserved even during Redis blackhole scenarios by bounding Redis dependency interactions with timeouts.
 
 ---
 
