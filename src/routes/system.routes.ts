@@ -1,22 +1,20 @@
 import { Router } from "express";
 import { metrics } from "../metrics/metrics.js";
-import rateLimitMiddleware from "../middlewares/rateLimiter.middleware.js";
 import express from "express";
+import { getSystemHealth } from "../services/health.service.js";
 
 const systemRouter = Router();
 
 // Only parse JSON for system routes, keep proxy payloads purely as streams
 systemRouter.use(express.json());
 
+
 systemRouter.get(
   "/health",
-  rateLimitMiddleware({
-    limit: 25,
-    windowInSeconds: 60,
-    strategy: "sliding"
-  }),
-  (_req, res) => {
-    res.json({ status: "ok" });
+  async (_req, res) => {
+    const health = await getSystemHealth();
+
+    res.status(200).send(health);
   }
 );
 

@@ -3,9 +3,11 @@ import systemRouter from "./routes/system.routes.js";
 import errorHandler from "./middlewares/errorHandler.middleware.js";
 import metricMiddleware from "./middlewares/metrics.middleware.js";
 import express from "express";
+import requestIdMiddleware from "#middlewares/requestId.middleware.js";
 
 const app = express();
 
+app.use(requestIdMiddleware)
 app.use(metricMiddleware);
 
 app.use("/", systemRouter);
